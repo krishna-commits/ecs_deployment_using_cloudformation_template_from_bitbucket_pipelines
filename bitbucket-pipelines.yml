@@ -1,0 +1,22 @@
+image: atlassian/pipelines-awscli
+
+pipelines:
+  default:
+    - step:
+        name: Deploy CloudFormation stack
+        services:
+          - docker
+        script:
+          # Install AWS CLI
+          # Authenticate with AWS using environment variables
+          - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+          - aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+          - aws configure set default.region us-west-1
+          - aws ecr get-login-password --region us-west-1 | docker login --username AWS --password-stdin AccountID
+          - docker build -t repo_name  .
+          - docker tag drata:latest $DOCKER_IMAGE_URL
+          - docker push $DOCKER_IMAGE_URL
+          # Validate the CloudFormation template
+          - aws cloudformation validate-template --template-body file://ecsfargate.yaml 
+          # Create or update the CloudFormation stack
+          - aws cloudformation deploy --stack-name my-stack --template-file ./ecsfargate.yaml --capabilities CAPABILITY_IAM
